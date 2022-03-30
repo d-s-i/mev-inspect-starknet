@@ -1,0 +1,10 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+starknet-accounts/argent-wallet1.json
+
+#Hardhat files
+cache
+artifacts
