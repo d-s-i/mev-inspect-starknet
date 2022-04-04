@@ -43,12 +43,11 @@ export const getFunctionCalldata = function(
     }
 
     return { subcalldata: calldata, endIndex: calldataIndex };
-
 }
 
 /**
  * 
- * @param type - Type of the starknet argument (4 possible: felt, felt*, struct, struct*)
+ * @param type - Type of the starknet argument (4 possible: felt, felt*, my_struct, my_struct*)
  * @param calldata - Calldata of the whole starknet function call
  * @param startIndex - Index from the full calldata of the starknet function call where you start fetching the arguments
  * @param structs - Structs of the contract to build the argument in case it is a struct
@@ -83,105 +82,6 @@ const getArgumentsValuesFromCalldata = function(
     }
 }
 
-
-// export const getFunctionCalldata = function(
-//     contractCode: StarknetContractCode, 
-//     calledFunction: {
-//         abi: FunctionAbi,
-//         rawFnCalldata: BigNumber[],
-//         startIndex: number
-//     }
-// ) {
-
-//     const inputs = calledFunction.abi.inputs;
-//     console.log("FN CALLDATA CALL");
-//     console.log(inputs);
-//     let calldataIndex = calledFunction.startIndex;
-
-//     const structs = getStructsFromContractAbi(contractCode);
-
-//     let calldata: any = [];
-//     for(const input of inputs) {
-//         const type = input.type;
-//         const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
-//         // single or multiple values ?
-//         if(type === "felt") {
-//             console.log("GETTING FELT");
-//             const { felt, endIndex } = getFeltFromCalldata(calledFunction.rawFnCalldata, calldataIndex);
-//             calldata.push(felt);
-//             calldataIndex = endIndex;
-//         } else if(type === "felt*") {
-//             // case when it's an array of felt
-//             console.log("GETTING FELT*");
-//             const size = calledFunction.rawFnCalldata[calldataIndex - 1].toNumber();
-//             const { feltArray, endIndex } = getFeltArrayFromCalldata(calledFunction.rawFnCalldata, calldataIndex, size);
-//             calldata.push(feltArray);
-//             calldataIndex = endIndex;
-//         } else if(!type.includes("*") && type !== "felt") {
-//             console.log(`GETTING ${rawType}`);
-//             const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calledFunction.rawFnCalldata, calldataIndex);
-//             calldata.push({ ...input, value: structCalldata });
-//             calldataIndex = endIndex;
-//         } else {
-//             //case where it's an array of stuct
-//             const size = calledFunction.rawFnCalldata[calldataIndex - 1].toNumber();
-//             const { structArray, endIndex } = getStructArrayFromCalldata(
-//                 structs[rawType], 
-//                 calledFunction.rawFnCalldata,
-//                 calldataIndex,
-//                 size
-//             );
-//             calldata.push({ ...input, value: structArray });
-//             calldataIndex = endIndex;
-//         }
-//     }
-//     // inputs.forEach((input, i) => {
-//     //     const type = input.type;
-//     //     const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
-//     //     // single or multiple values ?
-//     //     let value: StarknetArgument;
-//     //     if(type === "felt") {
-//     //         console.log("GETTING FELT");
-//     //         const { felt, endIndex } = getFeltFromCalldata(calledFunction.rawFnCalldata, calldataIndex);
-//     //         // return { subcalldata: felt, endIndex };
-//     //         value = felt;
-//     //         calldataIndex = endIndex;
-//     //     } else if(type === "felt*") {
-//     //         console.log("GETTING FELT*");
-//     //         // case when it's an array of felt
-//     //         const size = calledFunction.rawFnCalldata[calldataIndex - 1].toNumber();
-//     //         const { feltArray, endIndex } = getFeltArrayFromCalldata(calledFunction.rawFnCalldata, calldataIndex, size);
-//     //         // return { subcalldata: feltArray, endIndex };
-//     //         value = feltArray;
-//     //         calldataIndex = endIndex;
-//     //     } else if(!type.includes("*") && type !== "felt") {
-//     //         console.log(`GETTING ${rawType}`);
-//     //         const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calledFunction.rawFnCalldata, calldataIndex);
-//     //         // return { subcalldata: structCalldata, endIndex };;
-//     //         value = structCalldata;
-//     //         calldataIndex = endIndex;
-//     //     } else {
-//     //         //case where it's an array of stuct
-//     //         console.log(`GETTING ${rawType}*`);
-//     //         const size = calledFunction.rawFnCalldata[calldataIndex - 1].toNumber();
-//     //         const { structArray, endIndex } = getStructArrayFromCalldata(
-//     //             structs[rawType], 
-//     //             calledFunction.rawFnCalldata,
-//     //             calldataIndex,
-//     //             size
-//     //         );
-//     //         // return { subcalldata: structArray, endIndex } ;
-//     //         value = structArray;
-//     //         calldataIndex = endIndex;
-//     //     }
-//     //    calldata.push({ ...input, value: value });
-//     // });
-
-//     return { subcalldata: calldata, endIndex: calldataIndex };
-//     // return { subcalldata: undefined, endIndex: undefined };
-
-// }
-
 const getFeltFromCalldata = function(
     calldata: BigNumber[],
     startIndex: number
@@ -206,7 +106,7 @@ const getFeltArrayFromCalldata = function(
     return { feltArray, endIndex: calldataIndex };
 }
 
-// TODO: What if one property is a struct himself ? 
+// TODO: What if a nest property is a struct himself ? 
 const getStructFromCalldata = function(
     struct: StarknetStruct,
     calldata: BigNumber[],
@@ -318,7 +218,6 @@ export const getContractInteractions = async function(transactions: (DeployTrans
         const type = getContractType(tx);
         
         let amount = contractsInteractions[tx.contract_address] && contractsInteractions[tx.contract_address].transactionCount;
-        // let feeSpent = contractsInteractions[tx.contract_address] && contractsInteractions
         contractsInteractions[tx.contract_address] = {
             transactionCount: isNaN(amount) ? 1 : amount + 1,
             type: type
@@ -393,48 +292,3 @@ export const getFunctionABIFromSelector = async function(functions: FunctionAbi[
     throw new Error(`${FILE_PATH}/findNamefromSelector - selector not found in abi`);
 
 }
-
-/*
-const getStructsFromContractAbi = function(contractCode: StarknetContractCode) {
-    // let inputTypes = [];
-    // for(const input of inputs) {
-    //     inputTypes.push(input.type);
-    // }
-
-    let structs: { [key: string]: { size: number, properties: (AbiEntry & { offset: number })[] | undefined } } = { 
-        "felt": {
-            size: 1,
-            properties: undefined
-        } 
-    };
-    // for(const type of inputTypes) {
-    //     const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
-    //     if(!rawType.includes("felt")) {
-    //         let inputLength;
-    //         let properties;
-    //         for(const struct of contractCode.structs) {
-    //             if(struct.name == rawType) {
-    //                 inputLength = struct.size;
-    //                 properties = struct.members;
-    //             }
-    //         }
-    //         if(!inputLength) {
-    //             throw new Error(`${FILE_PATH}/getFunctionCalldata - ${type} not found in the struct of this contract`);
-    //         }
-            // structs[type] = {
-            //     size: inputLength,
-            //     properties: properties
-            // };
-    //     }
-    // }
-
-    for(const struct of contractCode.structs) {
-        structs[struct.name] = {
-            size: struct.size,
-            properties: struct.members
-        };
-    }
-    return structs;
-
-}
-*/
