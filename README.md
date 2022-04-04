@@ -16,3 +16,44 @@ If you see code that can be improved, logic flaws, or any improvement that can b
 It fetch all blocks for the past 24 hours and rank the most actives accounts and contracts on goerli.
 
 Type `hh run scripts/getTopAccountsPerDay.ts` to run the script (it use the starknet default provider and may take a while to fetch all the blocks).
+
+# Current Notice
+
+There is a problem with some type declaration in the starknetjs type declaration. I had to change the `GetBlockResponse` type, located in `node_modules/starknet/dist/provider/api.d.ts` to this
+
+```
+export declare type GetBlockResponse = {
+    block_number: number;
+    state_root: string;
+    block_hash: string;
+    transactions: Transaction[]; // this has changed
+    timestamp: number;
+    transaction_receipts: TransactionReceipt[]; // this has changed
+    parent_block_hash: string;
+    status: Status;
+};
+```
+
+and
+
+```
+export declare type TransactionReceipt = {
+    status: Status;
+    transaction_hash: string;
+    transaction_index: number;
+    block_hash: string;
+    block_number: BlockNumber;
+    l2_to_l1_messages: string[];
+    events: Event[]; // this has changed
+};
+```
+
+with Event being:
+
+```
+export declare type Event = {
+    from_address: string;
+    keys: Array<any>;
+    data: Array<any>;
+};
+```

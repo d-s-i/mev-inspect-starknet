@@ -9,9 +9,9 @@ import {
 } from "./helpers/helpers";
 import { 
     getAllTransactionsWithingBlockRange, 
-    getBlockRange,
-    getContractInteractions 
+    getBlockRange, 
 } from "./helpers/onchainHelpers";
+import { getContractInteractions } from "./helpers/contractsHelpers";
 import { ContractInfos } from "./helpers/types";
 
 
@@ -19,7 +19,10 @@ import { ContractInfos } from "./helpers/types";
 // const NODE_BASE_URL = "http://0.0.0.0:9545";
 // const provider = new Provider({ baseUrl : NODE_BASE_URL });
 
-const main = async function() {
+/**
+ * @dev get the most actives account in the last 24 hours
+ */
+const getTopAccounts = async function() {
 
     const { startBlockNumber, latestBlockNumber, milestones } = await getBlockRange();
     
@@ -39,4 +42,4 @@ const main = async function() {
     
 }
 
-main();
+getTopAccounts();

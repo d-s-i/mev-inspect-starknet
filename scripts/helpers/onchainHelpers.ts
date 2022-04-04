@@ -1,5 +1,6 @@
 import { defaultProvider, DeployTransaction, InvokeFunctionTransaction } from "starknet";
-import { STARKNET_BLOCKS_PER_DAY, EXECUTE_SELECTOR } from "./constants";
+import { BigNumber } from "ethers";
+import { STARKNET_BLOCKS_PER_DAY, EXECUTE_SELECTOR, callArrayStructLength } from "./constants";
 import { sleep, displayProgress } from "./helpers";
 import { RangeMilestones, ContractInfos } from "./types";
 
@@ -30,37 +31,10 @@ export const getAllTransactionsWithingBlockRange = async function(
 
         const block = await defaultProvider.getBlock(i);
         allTransactions.push(...block.transactions);
-        console.log("------------ TRANSACTIONS --------------");
-        console.log(block.transactions[0]);
-        console.log("-----------TRANSACTIONS_RECEIPTS---------------");
-        console.log(block.transaction_receipts[0]);
         await sleep(500);
     }
 
     return allTransactions;
-}
-
-export const getContractInteractions = async function(transactions: (DeployTransaction | InvokeFunctionTransaction)[]) {
-    let contractsInteractions: ContractInfos = {};
-    for(const tx of transactions) {
-        if(tx.type === "DEPLOY") continue;
-        
-        const type = getContractType(tx);
-        
-        let amount = contractsInteractions[tx.contract_address] && contractsInteractions[tx.contract_address].transactionCount;
-        // let feeSpent = contractsInteractions[tx.contract_address] && contractsInteractions
-        contractsInteractions[tx.contract_address] = {
-            transactionCount: isNaN(amount) ? 1 : amount + 1,
-            type: type
-        };
-    }
-    return contractsInteractions;
-}
-
-const getContractType = function(transaction: InvokeFunctionTransaction) {
-        // assuming accounts contract calls `__execute__`
-        // other solution : calling `get_signer` for Argent Accounts or `get_public_key` for OpenZeppelin Accounts, but it is very long
-        return transaction.entry_point_selector === EXECUTE_SELECTOR ? "ACCOUNT_CONTRACT" : "GENRAL_CONTRACT";
 }
 
 export const getLatestBlockNumber = async function() {
@@ -74,7 +48,7 @@ export const getLatestBlockNumber = async function() {
 }
 
 /**
-    @dev Function to retreive milestones from a range. Used to display progress of a long action.
+    @dev Function to retreive milestones from a range. Used to display progress of a long indexed action.
 */
 const getMilestones = function(startBlockNumber: number, endBlockNumber: number) {
     const length = endBlockNumber - startBlockNumber;
