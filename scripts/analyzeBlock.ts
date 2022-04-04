@@ -61,6 +61,10 @@ const analyzeBlock = async function(blockNumber: number) {
                     const contractCode = await getContract(call.to.toHexString());
                     const fnAbi = await getFunctionABIFromSelector(contractCode.functions, call.selector.toHexString());
                     const { subcalldata, endIndex } = getFunctionCalldata(contractCode, { abi: fnAbi, rawFnCalldata, startIndex: rawCallDataIndex });
+                    // console.log("returned", subcalldata, endIndex);
+                    if(!endIndex) {
+                        throw new Error(`${FILE_PATH}/analyzeBlock - No endIndex returned (endIndex: ${endIndex})`);
+                    }
                     rawCallDataIndex = endIndex;
                     calldata.push({
                         functionName: fnAbi.name,

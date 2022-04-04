@@ -28,10 +28,11 @@ export interface StarknetContractCode {
 }
 
 export interface StarknetStructAbi {
-    [key: string]: { 
-        size: number, 
-        properties: (AbiEntry & { offset: number })[] | undefined 
-    } 
+    [key: string]: StarknetStruct
+}
+
+export interface StarknetStruct { 
+    size: number; properties: (AbiEntry & { offset: number; })[] | []; 
 }
 
 export type StarknetArgument = { [key: string]: any } | BigNumber;
