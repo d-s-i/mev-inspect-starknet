@@ -20,7 +20,7 @@ import { ContractInfos } from "./helpers/types";
 // const provider = new Provider({ baseUrl : NODE_BASE_URL });
 
 /**
- * @dev get the most actives account in the last 24 hours
+ * @dev get the most actives account in the last 24 hours on the given network 
  */
 const getTopAccounts = async function() {
 

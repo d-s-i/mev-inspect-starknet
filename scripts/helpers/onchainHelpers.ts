@@ -1,8 +1,46 @@
-import { defaultProvider, DeployTransaction, InvokeFunctionTransaction } from "starknet";
+import { defaultProvider, DeployTransaction } from "starknet";
 import { BigNumber } from "ethers";
+import { getSelectorFromName } from "starknet/utils/hash";
 import { STARKNET_BLOCKS_PER_DAY, EXECUTE_SELECTOR, callArrayStructLength } from "./constants";
 import { sleep, displayProgress } from "./helpers";
 import { RangeMilestones, ContractInfos } from "./types";
+import { 
+    getEventAbiFromContractCode,
+} from "./contractsHelpers";
+import { Event, InvokeFunctionTransaction } from "starknet/dist/types/api";
+import { 
+    getStructsFromContractAbi,
+    getContract,
+    getArgumentsValuesFromCalldata,
+    destructureCalldata,
+    getCalldataPerFunction
+} from "./contractsHelpers";
+
+export const getEventCalldata = async function(
+    event: Event
+) {
+    const contractCode = await getContract(event.from_address);
+
+    let dataIndex = 0;
+    const structs = getStructsFromContractAbi(contractCode);
+    const eventAbi = getEventAbiFromContractCode(event, contractCode.events);
+    if(eventAbi?.data) {
+        let eventArgs = [];
+        for(const arg of eventAbi.data) {
+            const { argsValues, endIndex } = getArgumentsValuesFromCalldata(arg.type, event.data, dataIndex, structs);
+            dataIndex = endIndex;
+            eventArgs.push({ ...arg, value: argsValues });
+        }
+        return { name: eventAbi.name, calldata: eventArgs };
+    } 
+}
+
+export const getCalldataPerFunctionFromTx = async function(transaction: InvokeFunctionTransaction) {
+    const { callArray, rawFnCalldata } = destructureCalldata(transaction);
+    const functionCalls = await getCalldataPerFunction(callArray, rawFnCalldata);
+
+    return functionCalls;
+}
 
 export const getBlockRange = async function() {
     const latestBlockNumber = await getLatestBlockNumber();

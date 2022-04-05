@@ -57,3 +57,10 @@ export declare type Event = {
     data: Array<any>;
 };
 ```
+
+Please if you use it, feel free to give me any feedback. It's really important for my learning :)
+Telegram: @real_dsi
+Discord: 👑 dsi#9401
+Email: dsi9999777@gmail.com
+
+Thank you so much
