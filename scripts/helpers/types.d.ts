@@ -22,14 +22,28 @@ export interface AccountCallArray {
     dataLen: BigNumber
 }
 
+// export interface StarknetContractCode {
+//     functions: FunctionAbi[],
+//     structs: StructAbi[],
+//     events: EventAbi[]
+// }
+
 export interface StarknetContractCode {
-    functions: FunctionAbi[],
-    structs: StructAbi[],
-    events: EventAbi[]
+    functions: OrganizedFunctionAbi,
+    structs: OrganizedStructAbi,
+    events: OrganizedEventAbi
 }
 
-export interface StarknetStructAbi {
+export interface OrganizedFunctionAbi { 
+    [key: string]: FunctionAbi 
+}
+
+export interface OrganizedStructAbi {
     [key: string]: StarknetStruct
+}
+
+export interface OrganizedEventAbi { 
+    [key: string]: EventAbi
 }
 
 export interface StarknetStruct { 

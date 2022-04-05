@@ -1,42 +1,36 @@
-import { defaultProvider, DeployTransaction } from "starknet";
-import { BigNumber } from "ethers";
-import { getSelectorFromName } from "starknet/utils/hash";
-import { STARKNET_BLOCKS_PER_DAY, EXECUTE_SELECTOR, callArrayStructLength } from "./constants";
+import { defaultProvider } from "starknet";
+import { STARKNET_BLOCKS_PER_DAY } from "./constants";
 import { sleep, displayProgress } from "./helpers";
-import { RangeMilestones, ContractInfos } from "./types";
-import { 
-    getEventAbiFromContractCode,
-} from "./contractsHelpers";
+import { RangeMilestones } from "./types";
 import { Event, InvokeFunctionTransaction } from "starknet/dist/types/api";
 import { 
-    getStructsFromContractAbi,
-    getContract,
+    getContractAbi,
     getArgumentsValuesFromCalldata,
-    destructureCalldata,
+    destructureFunctionCalldata,
     getCalldataPerFunction
 } from "./contractsHelpers";
 
-export const getEventCalldata = async function(
-    event: Event
-) {
-    const contractCode = await getContract(event.from_address);
+export const getEventCalldata = async function(event: Event) {
+    const contractCode = await getContractAbi(event.from_address);
 
     let dataIndex = 0;
-    const structs = getStructsFromContractAbi(contractCode);
-    const eventAbi = getEventAbiFromContractCode(event, contractCode.events);
-    if(eventAbi?.data) {
+    if(contractCode.events.eventAbi?.data) {
         let eventArgs = [];
-        for(const arg of eventAbi.data) {
-            const { argsValues, endIndex } = getArgumentsValuesFromCalldata(arg.type, event.data, dataIndex, structs);
+        for(const arg of contractCode.events.eventAbi.data) {
+            const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
+                arg.type, 
+                { fullCalldataValues: event.data, startIndex: dataIndex }, 
+                contractCode.structs
+            );
             dataIndex = endIndex;
             eventArgs.push({ ...arg, value: argsValues });
         }
-        return { name: eventAbi.name, calldata: eventArgs };
+        return { name: contractCode.events.eventAbi.name, calldata: eventArgs };
     } 
 }
 
 export const getCalldataPerFunctionFromTx = async function(transaction: InvokeFunctionTransaction) {
-    const { callArray, rawFnCalldata } = destructureCalldata(transaction);
+    const { callArray, rawFnCalldata } = destructureFunctionCalldata(transaction);
     const functionCalls = await getCalldataPerFunction(callArray, rawFnCalldata);
 
     return functionCalls;

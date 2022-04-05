@@ -1,18 +1,15 @@
 import { defaultProvider, DeployTransaction } from "starknet";
 import { getSelectorFromName } from "starknet/utils/hash";
-import { FunctionAbi, InvokeFunctionTransaction, AbiEntry } from "starknet/types";
-import { 
-    EventAbi,
-} from "starknet/types/index";
-import { Event } from "starknet/dist/types/api";
+import { FunctionAbi, InvokeFunctionTransaction } from "starknet/types";
 import { BigNumber } from "ethers";
 import { sleep } from "./helpers";
 import { EXECUTE_SELECTOR, callArrayStructLength } from "./constants";
 import { 
     ContractInfos, 
-    AccountCallArray, 
     StarknetContractCode, 
-    StarknetStructAbi,
+    OrganizedEventAbi,
+    OrganizedStructAbi,
+    OrganizedFunctionAbi,
     StarknetArgument,
     StarknetStruct,
     CallArray
@@ -27,11 +24,11 @@ export const getCalldataPerFunction = async function(
     let rawCalldataIndex = 0;
     let functionCalls = [];
     for(const call of callArray) {
-        const contractCode = await getContract(call.to.toHexString());
-        const fnAbi = getFunctionABIFromSelector(contractCode.functions, call.selector.toHexString());
+        const contractCode = await getContractAbi(call.to.toHexString());
+        const fnAbi = contractCode.functions[call.selector.toHexString()]
         const { subcalldata, endIndex } = getSingleFunctionCalldata(
-            contractCode, 
-            { calldata: fullTxCalldata, startIndex: rawCalldataIndex }, 
+            contractCode.structs, 
+            { fullCalldataValues: fullTxCalldata, startIndex: rawCalldataIndex }, 
             fnAbi
         );
         if(!endIndex) {
@@ -54,23 +51,20 @@ export const getCalldataPerFunction = async function(
  * @returns calldata of the function called and endIndex where the function call end in the whole calldata of the transaction
  */
 const getSingleFunctionCalldata = function(
-    contractCode: StarknetContractCode, 
-    calldataObj: { calldata: BigNumber[], startIndex: number },
+    structs: OrganizedStructAbi, 
+    calldataObj: { fullCalldataValues: BigNumber[], startIndex: number },
     calledFunctionAbi: FunctionAbi
 ) {
 
     const inputs = calledFunctionAbi.inputs;
     let calldataIndex = calldataObj.startIndex;
 
-    const structs = getStructsFromContractAbi(contractCode);
-
     let calldata: any = [];
     for(const input of inputs) {
         
         const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
             input.type,
-            calldataObj.calldata,
-            calldataIndex,
+            calldataObj,
             structs
         );
         calldataIndex = endIndex;
@@ -90,27 +84,26 @@ const getSingleFunctionCalldata = function(
  */
 export const getArgumentsValuesFromCalldata = function(
     type: string,
-    calldata: BigNumber[],
-    startIndex: number,
-    structs: StarknetStructAbi
+    calldata: { fullCalldataValues: BigNumber[], startIndex: number },
+    structs: OrganizedStructAbi
 ) {
     const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
     if(type === "felt") {
-        const { felt, endIndex } = getFeltFromCalldata(calldata, startIndex);
+        const { felt, endIndex } = getFeltFromCalldata(calldata.fullCalldataValues, calldata.startIndex);
         return { argsValues: felt, endIndex };
     } else if(type === "felt*") {
-        const size = calldata[startIndex - 1].toNumber();
-        const { feltArray, endIndex } = getFeltArrayFromCalldata(calldata, startIndex, size);
+        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
+        const { feltArray, endIndex } = getFeltArrayFromCalldata(calldata.fullCalldataValues, calldata.startIndex, size);
         return { argsValues: feltArray, endIndex };
     } else if(!type.includes("*") && type !== "felt") {
-        const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calldata, startIndex);
+        const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calldata.fullCalldataValues, calldata.startIndex);
         return { argsValues: structCalldata, endIndex };
     } else {
-        const size = calldata[startIndex - 1].toNumber();
+        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
         const { structArray, endIndex } = getStructArrayFromCalldata(
             structs[rawType], 
-            calldata,
-            startIndex,
+            calldata.fullCalldataValues,
+            calldata.startIndex,
             size
         );
         return { argsValues: structArray, endIndex };
@@ -184,23 +177,6 @@ const getStructArrayFromCalldata = function(
     return { structArray, endIndex: calldataIndex };
 }
 
-export const getStructsFromContractAbi = function(contractCode: StarknetContractCode) {
-    let structs: StarknetStructAbi = { 
-        "felt": {
-            size: 1,
-            properties: []
-        } 
-    };
-
-    for(const struct of contractCode.structs) {
-        structs[struct.name] = {
-            size: struct.size,
-            properties: struct.members || []
-        };
-    }
-    return structs;
-}
-
 /**
  * 
  * @dev - Transactions have:
@@ -208,7 +184,7 @@ export const getStructsFromContractAbi = function(contractCode: StarknetContract
  * 2) The arguments of each contract call
  * @returns an organized object of a transaction calldata
  */
-export const destructureCalldata = function(tx: InvokeFunctionTransaction) {
+export const destructureFunctionCalldata = function(tx: InvokeFunctionTransaction) {
     if(!tx.calldata) {
         console.log(tx);
         throw new Error(`${FILE_PATH}/destructureCalldata - Calldata of tx is undefined (calldata: ${tx.calldata})`);
@@ -314,33 +290,27 @@ export const getSymbolAndDecimalsOfToken = async function(tokenAddress: string) 
     return { symbol, decimals };
 }
 
-export const getContract = async function(contractAddress: string) {
+export const getContractAbi = async function(contractAddress: string) {
     const { abi } = await defaultProvider.getCode(contractAddress);
-    let functions = [];
-    let events = [];
-    let structs = [];
-    for(const item of abi) {
-        if(item.type === "function") functions.push(item);
-        if(item.type === "struct") structs.push(item);
-        if(item.type === "event") events.push(item);
-    }
-    return { functions, structs, events } as StarknetContractCode;
-}
 
-export const getEventAbiFromContractCode = function(event: Event, eventsAbi: EventAbi[]) {
-    
-    for(const eventAbi of eventsAbi) {
-        const eventSelector = BigNumber.from(getSelectorFromName(eventAbi.name));
-        if(eventSelector.eq(event.keys[0])) {
-            return eventAbi;
+    let functions: OrganizedFunctionAbi = {};
+    let events: OrganizedEventAbi = {};
+    let structs: OrganizedStructAbi = {};
+    for(const item of abi) {
+        if(item.type === "function") {
+            const _name = BigNumber.from(getSelectorFromName(item.name)).toHexString()
+            functions[_name] = item;
+        }
+        if(item.type === "struct") {
+            structs[item.name] = {
+                size: item.size,
+                properties: item.members || []
+            };
+        }
+        if(item.type === "event") {
+            const _name = BigNumber.from(getSelectorFromName(item.name)).toHexString()
+            events[_name] = item;
         }
     }
-}
-
-export const getFunctionABIFromSelector = function(functions: FunctionAbi[], selector: string) {
-    for(const fn of functions) {
-        if(BigNumber.from(getSelectorFromName(fn.name)).eq(selector)) return fn;
-    }
-
-    throw new Error(`${FILE_PATH}/findNamefromSelector - selector not found in abi`);
+    return { functions, structs, events } as StarknetContractCode;
 }
