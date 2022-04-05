@@ -13,9 +13,10 @@ If you see code that can be improved, logic flaws, or any improvement that can b
 
 # What is does now:
 
-It fetch all blocks for the past 24 hours and rank the most actives accounts and contracts on goerli.
-
+1) It fetch all blocks for the past 24 hours and rank the most actives accounts and contracts on goerli.
 Type `hh run scripts/getTopAccountsPerDay.ts` to run the script (it use the starknet default provider and may take a while to fetch all the blocks).
+
+2) Given a transaction, it analyze the inputs and events, and return an organized object (similar to what you see at etherscan.io)
 
 # Current Notice
 
@@ -55,6 +56,16 @@ export declare type Event = {
     from_address: string;
     keys: Array<any>;
     data: Array<any>;
+};
+```
+
+I also added an EventAbi in `node_modules/starknet/types/lib.d.ts`
+```
+export declare type EventAbi = {
+  data: { name: string, type: string }[],
+  keys: string[],
+  name: string,
+  type: string
 };
 ```
 
