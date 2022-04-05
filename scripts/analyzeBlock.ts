@@ -23,9 +23,7 @@ const analyzeBlock = async function(blockNumber: number) {
     for(const receipt of receipts) {
         for(const event of receipt.events) {
             const eventCalldata = await getEventCalldata(event);
-            console.log("-----------------------");
             if(eventCalldata) {
-                console.log("\n");
                 console.log(`Event: ${eventCalldata.name}`);
                 for(const calldataValue of eventCalldata.calldata) {
                     console.log(calldataValue.name, " : ", calldataValue.value);
@@ -33,17 +31,21 @@ const analyzeBlock = async function(blockNumber: number) {
             }
 
             const tx = transactions[receipt.transaction_index] as InvokeFunctionTransaction;
-            const functionCalls = await getCalldataPerFunctionFromTx(tx);
-            for(const functionCall of functionCalls) {
-                console.log("\n");
-                console.log(`Function: ${functionCall.name}`);
-                console.log(functionCall.calldata);
+            try {
+                const functionCalls = await getCalldataPerFunctionFromTx(tx);
+                for(const functionCall of functionCalls) {
+                    console.log(`Called ${functionCall.name}`);
+                }
+                console.log("-----------------------");
+            } catch(error) {
+                console.log(`Error with in block ${block.block_hash} with transaction hash ${receipt.transaction_hash}`);
+                console.log(error);
+                // console.log("Error with transaction: ", tx);
             }
-            console.log("-----------------------");
         }
     }
 
     console.log("done");
 }
 
-analyzeBlock(144826);
+analyzeBlock(140040);

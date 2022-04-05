@@ -25,7 +25,7 @@ export const getCalldataPerFunction = async function(
     let functionCalls = [];
     for(const call of callArray) {
         const contractCode = await getContractAbi(call.to.toHexString());
-        const fnAbi = contractCode.functions[call.selector.toHexString()]
+        const fnAbi = getFunctionAbiFromContractCode(contractCode, call);
         const { subcalldata, endIndex } = getSingleFunctionCalldata(
             contractCode.structs, 
             { fullCalldataValues: fullTxCalldata, startIndex: rawCalldataIndex }, 
@@ -61,10 +61,9 @@ const getSingleFunctionCalldata = function(
 
     let calldata: any = [];
     for(const input of inputs) {
-        
         const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
             input.type,
-            calldataObj,
+            { fullCalldataValues: calldataObj.fullCalldataValues, startIndex: calldataIndex },
             structs
         );
         calldataIndex = endIndex;
@@ -115,8 +114,7 @@ const getFeltFromCalldata = function(
     startIndex: number
 ) {
     const felt = calldata[startIndex];
-    startIndex++;
-    return { felt, endIndex: startIndex };
+    return { felt, endIndex: startIndex + 1 };
 }
 
 const getFeltArrayFromCalldata = function(
@@ -187,7 +185,7 @@ const getStructArrayFromCalldata = function(
 export const destructureFunctionCalldata = function(tx: InvokeFunctionTransaction) {
     if(!tx.calldata) {
         console.log(tx);
-        throw new Error(`${FILE_PATH}/destructureCalldata - Calldata of tx is undefined (calldata: ${tx.calldata})`);
+        throw new Error(`${FILE_PATH}/destructureFunctionCalldata - Calldata of tx is undefined (calldata: ${tx.calldata})`);
     };
 
     const callArray = getCallArrayFromTx(tx);
@@ -313,4 +311,18 @@ export const getContractAbi = async function(contractAddress: string) {
         }
     }
     return { functions, structs, events } as StarknetContractCode;
+}
+
+const getFunctionAbiFromContractCode = function(contractCode: StarknetContractCode, call: CallArray) {
+    const fnAbi = contractCode.functions[call.selector.toHexString()];
+    if(!fnAbi) {
+        console.log("\nContract Abi only has those functions: ");
+        Object.entries(contractCode.functions).map(([key, value]) => {
+            console.log(`selector:  ${key} - name: ${value.name}`);
+        })
+        throw new Error(
+            `${FILE_PATH}/getFunctionAbiFromContractCode - No Abi found for function ${call.selector.toHexString()} at contract address ${call.to.toHexString()}`
+        );
+    }
+    return fnAbi;
 }

@@ -59,7 +59,7 @@ export declare type Event = {
 };
 ```
 
-I also added an EventAbi in `node_modules/starknet/types/lib.d.ts`
+I also added an EventAbi in `node_modules/starknet/types/lib.d.ts` and `node_modules/starknet/dist/types/lib.d.ts` (probably only useful in dist)
 ```
 export declare type EventAbi = {
   data: { name: string, type: string }[],
