@@ -17,6 +17,7 @@ If you see code that can be improved, logic flaws, or any improvement that can b
 Type `hh run scripts/getTopAccountsPerDay.ts` to run the script (it use the starknet default provider and may take a while to fetch all the blocks).
 
 2) Given a transaction, it analyze the inputs and events, and return an organized object (similar to what you see at etherscan.io)
+Type `ts-node scripts/analyzeBlock.ts` to run the script
 
 # Current Notice
 
@@ -71,7 +72,9 @@ export declare type EventAbi = {
 
 Please if you use it, feel free to give me any feedback. It's really important for my learning :)
 Telegram: @real_dsi
+
 Discord: 👑 dsi#9401
+
 Email: dsi9999777@gmail.com
 
 Thank you so much

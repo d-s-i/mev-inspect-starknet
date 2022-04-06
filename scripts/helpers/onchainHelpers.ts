@@ -1,7 +1,7 @@
 import { defaultProvider } from "starknet";
 import { STARKNET_BLOCKS_PER_DAY } from "./constants";
 import { sleep, displayProgress } from "./helpers";
-import { RangeMilestones } from "./types";
+import { RangeMilestones, FunctionCall } from "./types";
 import { Event, InvokeFunctionTransaction } from "starknet/dist/types/api";
 import { 
     getContractAbi,
@@ -11,29 +11,32 @@ import {
 } from "./contractsHelpers";
 
 export const getEventCalldata = async function(event: Event) {
-    const contractCode = await getContractAbi(event.from_address);
+    const { structs, events } = await getContractAbi(event.from_address);
 
     let dataIndex = 0;
-    if(contractCode.events.eventAbi?.data) {
+    if(events[event.keys[0]]?.data) {
         let eventArgs = [];
-        for(const arg of contractCode.events.eventAbi.data) {
+        // TODO: make another for loop for each keys in case many events are triggered
+        for(const arg of events[event.keys[0]].data) {
             const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
                 arg.type, 
                 { fullCalldataValues: event.data, startIndex: dataIndex }, 
-                contractCode.structs
+                structs
             );
             dataIndex = endIndex;
             eventArgs.push({ ...arg, value: argsValues });
         }
-        return { name: contractCode.events.eventAbi.name, calldata: eventArgs };
-    } 
+        return { name: events[event.keys[0]].name, calldata: eventArgs };
+    } else {
+        console.log("No Abi For This Event", event.keys[0]);
+    }
 }
 
 export const getCalldataPerFunctionFromTx = async function(transaction: InvokeFunctionTransaction) {
     const { callArray, rawFnCalldata } = destructureFunctionCalldata(transaction);
     const functionCalls = await getCalldataPerFunction(callArray, rawFnCalldata);
 
-    return functionCalls;
+    return functionCalls as FunctionCall[];
 }
 
 export const getBlockRange = async function() {

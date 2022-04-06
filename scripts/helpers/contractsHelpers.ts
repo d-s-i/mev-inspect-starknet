@@ -12,7 +12,8 @@ import {
     OrganizedFunctionAbi,
     StarknetArgument,
     StarknetStruct,
-    CallArray
+    CallArray,
+    OrganizedCalldata
 } from "./types";
 
 const FILE_PATH = "scripts/helpers/contractsHelpers";
@@ -23,20 +24,25 @@ export const getCalldataPerFunction = async function(
 ) {
     let rawCalldataIndex = 0;
     let functionCalls = [];
+    let contractsCalledAbis: { [key: string]: StarknetContractCode } = {};
     for(const call of callArray) {
-        const contractCode = await getContractAbi(call.to.toHexString());
-        const fnAbi = getFunctionAbiFromContractCode(contractCode, call);
+        if(!contractsCalledAbis[call.to.toHexString()]) {
+            contractsCalledAbis[call.to.toHexString()] = await getContractAbi(call.to.toHexString());
+        } 
+
+        const fnAbi = getFunctionAbiFromContractCode(contractsCalledAbis[call.to.toHexString()], call);
         const { subcalldata, endIndex } = getSingleFunctionCalldata(
-            contractCode.structs, 
+            contractsCalledAbis[call.to.toHexString()].structs, 
             { fullCalldataValues: fullTxCalldata, startIndex: rawCalldataIndex }, 
             fnAbi
         );
-        if(!endIndex) {
+        if(!endIndex && endIndex !== 0) {
             throw new Error(`${FILE_PATH}/analyzeBlock - No endIndex returned (endIndex: ${endIndex})`);
         }
         rawCalldataIndex = endIndex;
         functionCalls.push({
             name: fnAbi.name,
+            to: call.to,
             calldata: subcalldata
         });
     }
@@ -59,7 +65,7 @@ const getSingleFunctionCalldata = function(
     const inputs = calledFunctionAbi.inputs;
     let calldataIndex = calldataObj.startIndex;
 
-    let calldata: any = [];
+    let calldata: OrganizedCalldata = [];
     for(const input of inputs) {
         const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
             input.type,
@@ -91,14 +97,14 @@ export const getArgumentsValuesFromCalldata = function(
         const { felt, endIndex } = getFeltFromCalldata(calldata.fullCalldataValues, calldata.startIndex);
         return { argsValues: felt, endIndex };
     } else if(type === "felt*") {
-        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
+        const size = getArraySizeFromCalldata(calldata);
         const { feltArray, endIndex } = getFeltArrayFromCalldata(calldata.fullCalldataValues, calldata.startIndex, size);
         return { argsValues: feltArray, endIndex };
     } else if(!type.includes("*") && type !== "felt") {
         const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calldata.fullCalldataValues, calldata.startIndex);
         return { argsValues: structCalldata, endIndex };
     } else {
-        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
+        const size = getArraySizeFromCalldata(calldata);
         const { structArray, endIndex } = getStructArrayFromCalldata(
             structs[rawType], 
             calldata.fullCalldataValues,
@@ -106,6 +112,18 @@ export const getArgumentsValuesFromCalldata = function(
             size
         );
         return { argsValues: structArray, endIndex };
+    }
+}
+
+const getArraySizeFromCalldata = function(calldata: { fullCalldataValues: BigNumber[], startIndex: number }) {
+    try {
+        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
+        return size;
+    } catch(error) {
+        console.log(error);
+        throw new Error(
+            `${FILE_PATH}/getArraySizeFromCalldata - Error trying to get the previous calldata index and converting it into number (value: ${calldata.fullCalldataValues[calldata.startIndex - 1]})`
+        );
     }
 }
 
@@ -316,10 +334,10 @@ export const getContractAbi = async function(contractAddress: string) {
 const getFunctionAbiFromContractCode = function(contractCode: StarknetContractCode, call: CallArray) {
     const fnAbi = contractCode.functions[call.selector.toHexString()];
     if(!fnAbi) {
-        console.log("\nContract Abi only has those functions: ");
-        Object.entries(contractCode.functions).map(([key, value]) => {
-            console.log(`selector:  ${key} - name: ${value.name}`);
-        })
+        // console.log("\nContract Abi only has those functions: ");
+        // Object.entries(contractCode.functions).map(([key, value]) => {
+        //     console.log(`selector:  ${key} - name: ${value.name}`);
+        // })
         throw new Error(
             `${FILE_PATH}/getFunctionAbiFromContractCode - No Abi found for function ${call.selector.toHexString()} at contract address ${call.to.toHexString()}`
         );

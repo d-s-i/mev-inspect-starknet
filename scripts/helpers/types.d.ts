@@ -59,3 +59,11 @@ export interface CallArray {
     dataOffset: BigNumber,
     dataLen: BigNumber
 }
+
+export interface FunctionCall {
+    name: string;
+    to: BigNumber;
+    calldata: any;
+}
+
+export type OrganizedCalldata = StarknetArgument | StarknetArgument[];

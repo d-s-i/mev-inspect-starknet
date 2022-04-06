@@ -1,19 +1,14 @@
-// import { starknet } from "hardhat";
 import { defaultProvider } from "starknet";
 import { 
     InvokeFunctionTransaction, 
 } from "starknet/types/index";
-import { 
-    TRANSFER_SELECTOR, 
-    APPROVAL_SELECTOR,
-    SWAP_SELECTOR,
-} from "./helpers/constants";
 import {
     getCalldataPerFunctionFromTx,
     getEventCalldata
 } from "./helpers/onchainHelpers";
+import { sleep } from "./helpers/helpers";
 
-const FILE_PATH = "scripts/analyzeBlock"
+const FILE_PATH = "scripts/analyzeBlock";
 
 const analyzeBlock = async function(blockNumber: number) {
     const block = await defaultProvider.getBlock(blockNumber);
@@ -42,10 +37,11 @@ const analyzeBlock = async function(blockNumber: number) {
                 console.log(error);
                 // console.log("Error with transaction: ", tx);
             }
+            await sleep(1000);
         }
     }
 
     console.log("done");
 }
 
-analyzeBlock(140040);
+analyzeBlock(140046);
