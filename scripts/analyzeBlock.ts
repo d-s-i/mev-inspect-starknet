@@ -5,7 +5,7 @@ const analyzeBlock = async function(blockNumber: number) {
 
     const blockAnalyzer = new BlockAnalyzer(defaultProvider);
     const block = await defaultProvider.getBlock(blockNumber);
-    const transactions = await blockAnalyzer.getTransactions(block);
+    const transactions = await blockAnalyzer.organizeTransactions(block);
 
     console.log(transactions);
 

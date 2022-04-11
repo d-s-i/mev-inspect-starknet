@@ -25,7 +25,7 @@ export class BlockAnalyzer extends TransactionCallAnalyzer {
         this._provider = provider;
     }
 
-    async getTransactions(block: GetBlockResponse) {
+    async organizeTransactions(block: GetBlockResponse) {
         const transactions = block.transactions;
         const receipts = block.transaction_receipts;
 
