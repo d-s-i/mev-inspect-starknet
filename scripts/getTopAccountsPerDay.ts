@@ -1,8 +1,3 @@
-// import { starknet } from "hardhat";
-import path from "path";
-import fs from "fs-extra";
-import { defaultProvider, Provider } from "starknet";
-
 import { 
     sortAddressesPerActivity,
     writeInFile
@@ -12,8 +7,6 @@ import {
     getBlockRange, 
 } from "./helpers/onchainHelpers";
 import { getContractInteractions } from "./helpers/contractsHelpers";
-import { ContractInfos } from "./helpers/types";
-
 
 // Waiting for nodes to activate APIs before using local nodes
 // const NODE_BASE_URL = "http://0.0.0.0:9545";

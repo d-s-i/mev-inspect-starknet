@@ -1,46 +1,15 @@
 import { defaultProvider } from "starknet";
-import { STARKNET_BLOCKS_PER_DAY } from "./constants";
 import { BigNumber } from "ethers";
+import { getSelectorFromName } from "starknet/utils/hash";
+import { STARKNET_BLOCKS_PER_DAY } from "./constants";
 import { sleep, displayProgress } from "./helpers";
 import { 
     RangeMilestones, 
-    FunctionCall, 
-    OrganizedStructAbi,
-    OrganizedCalldata
+    StarknetContractCode,
+    OrganizedEventAbi,
+    OrganizedFunctionAbi,
+    OrganizedStructAbi
 } from "./types";
-import { Event } from "starknet/dist/types/api";
-import { FunctionAbi, InvokeFunctionTransaction } from "starknet/types"
-import { 
-    getContractAbi,
-    destructureFunctionCalldata,
-    getCalldataPerCall
-} from "./contractsHelpers";
-import { ContractAnalyzer } from "../contractAnalyzer";
-
-const FILE_PATH = "scripts/onchainHelpers";
-
-export const getCalldataPerCallFromTx = async function(transaction: InvokeFunctionTransaction) {
-    const { callArray, rawFnCalldata } = destructureFunctionCalldata(transaction);
-    const functionCalls = await getCalldataPerCall(callArray, rawFnCalldata);
-
-    return functionCalls as FunctionCall[];
-}
-
-export const getCalldataPerEventFromTx = async function(event: Event) {
-    const { structs, functions, events } = await getContractAbi(event.from_address);
-    const contractAnalyzer = new ContractAnalyzer(
-        event.from_address,
-        structs,
-        functions,
-        events
-    );
-    try {
-        const structuredEvent = await contractAnalyzer.structureEvent(event);
-        return structuredEvent;
-    } catch(error) {
-        return undefined;
-    }
-}
 
 //////////////////
 
@@ -90,11 +59,11 @@ export const getLatestBlockNumber = async function() {
 /**
     @dev Function to retreive milestones from a range. Used to display progress of a long indexed action.
 */
-const getMilestones = function(startBlockNumber: number, endBlockNumber: number) {
-    const length = endBlockNumber - startBlockNumber;
+const getMilestones = function(start: number, end: number) {
+    const length = end - start;
     let indexes = [];
     for(let i = 0; i <= length; i++) {
-        indexes.push(startBlockNumber + i);
+        indexes.push(start + i);
     }
 
     const milestones = {

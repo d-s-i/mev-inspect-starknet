@@ -67,3 +67,22 @@ export interface FunctionCall {
 }
 
 export type OrganizedCalldata = StarknetArgument | StarknetArgument[];
+
+export interface OrganizedEvent { 
+    name: string, 
+    transmitterContract: string, 
+    calldata: {
+        [key: string]: any;
+    } 
+}
+
+export interface OrganizedTransaction {
+    hash: string,
+    events: OrganizedEvent[],
+    origin: string,
+    entrypointSelector: string,
+    entrypointType?: string,
+    functionCalls?: OrganizedCalldata,
+    maxFee?: string,
+    type: string
+}

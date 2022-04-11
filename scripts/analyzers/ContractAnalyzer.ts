@@ -4,9 +4,13 @@ import {
     OrganizedFunctionAbi, 
     OrganizedStructAbi,
     StarknetArgument,
-    OrganizedCalldata
-} from "./helpers/types";
+    OrganizedCalldata,
+    OrganizedEvent,
+    StarknetContractCode
+} from "../helpers/types";
 import { Event } from "starknet/dist/types/api";
+import { Provider } from "starknet";
+import { getSelectorFromName } from "starknet/utils/hash";
 
 export class ContractAnalyzer {
 
@@ -27,7 +31,32 @@ export class ContractAnalyzer {
         this._events = events;
     }
 
-    structureFunctionInput(
+    static async getContractAbi(contractAddress: string, provider: Provider) {
+        const { abi } = await provider.getCode(contractAddress);
+    
+        let functions: OrganizedFunctionAbi = {};
+        let events: OrganizedEventAbi = {};
+        let structs: OrganizedStructAbi = {};
+        for(const item of abi) {
+            if(item.type === "function") {
+                const _name = BigNumber.from(getSelectorFromName(item.name)).toHexString()
+                functions[_name] = item;
+            }
+            if(item.type === "struct") {
+                structs[item.name] = {
+                    size: item.size,
+                    properties: item.members || []
+                };
+            }
+            if(item.type === "event") {
+                const _name = BigNumber.from(getSelectorFromName(item.name)).toHexString()
+                events[_name] = item;
+            }
+        }
+        return { functions, structs, events } as StarknetContractCode;
+    }
+
+    organizeFunctionInput(
         functionSelector: string,
         calldataObj: { fullCalldataValues: BigNumber[], startIndex: number }
     ) {
@@ -37,7 +66,7 @@ export class ContractAnalyzer {
     
         let calldata: OrganizedCalldata = [];
         for(const input of inputs) {
-            const { argsValues, endIndex } = this.getArgumentsValuesFromCalldata(
+            const { argsValues, endIndex } = this._getArgumentsValuesFromCalldata(
                 input.type,
                 { fullCalldataValues: calldataObj.fullCalldataValues, startIndex: calldataIndex }
             );
@@ -48,7 +77,7 @@ export class ContractAnalyzer {
         return { subcalldata: calldata, endIndex: calldataIndex };
     }
 
-    structureFunctionOutput(
+    organizeFunctionOutput(
         functionSelector: string,
         calldataObj: { fullCalldataValues: BigNumber[], startIndex: number }
     ) {
@@ -58,7 +87,7 @@ export class ContractAnalyzer {
 
         let calldata: OrganizedCalldata = [];
         for(const output of outputs) {
-            const { argsValues, endIndex } = this.getArgumentsValuesFromCalldata(
+            const { argsValues, endIndex } = this._getArgumentsValuesFromCalldata(
                 output.type,
                 { fullCalldataValues: calldataObj.fullCalldataValues, startIndex: calldataIndex },
             );
@@ -69,7 +98,7 @@ export class ContractAnalyzer {
         return { subcalldata: calldata, endIndex: calldataIndex };
     }
 
-    structureEvent(event: Event) {
+    organizeEvent(event: Event) {
         // TODO: make another for loop for each keys in case many events are triggered
         // (never saw this case yet after analysing hundreds of blocks)
         if(event.keys.length > 1) {
@@ -81,35 +110,35 @@ export class ContractAnalyzer {
         let dataIndex = 0;
         let eventArgs = [];
         for(const arg of eventAbi.data) {
-            const { argsValues, endIndex } = this.getArgumentsValuesFromCalldata(
+            const { argsValues, endIndex } = this._getArgumentsValuesFromCalldata(
                 arg.type, 
                 { fullCalldataValues: event.data, startIndex: dataIndex }, 
             );
             dataIndex = endIndex;
             eventArgs.push({ ...arg, value: argsValues });
         }
-        return { name: eventAbi.name, transmitterContract: event.from_address, calldata: eventArgs };
+        return { name: eventAbi.name, transmitterContract: event.from_address, calldata: eventArgs } as OrganizedEvent;
 
     }
 
-    getArgumentsValuesFromCalldata(
+    _getArgumentsValuesFromCalldata(
         type: string,
         calldata: { fullCalldataValues: BigNumber[], startIndex: number },
     ) {
         const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
         if(type === "felt") {
-            const { felt, endIndex } = this.getFeltFromCalldata(calldata.fullCalldataValues, calldata.startIndex);
+            const { felt, endIndex } = this._getFeltFromCalldata(calldata.fullCalldataValues, calldata.startIndex);
             return { argsValues: felt, endIndex };
         } else if(type === "felt*") {
-            const size = this.getArraySizeFromCalldata(calldata);
-            const { feltArray, endIndex } = this.getFeltArrayFromCalldata(calldata.fullCalldataValues, calldata.startIndex, size);
+            const size = this._getArraySizeFromCalldata(calldata);
+            const { feltArray, endIndex } = this._getFeltArrayFromCalldata(calldata.fullCalldataValues, calldata.startIndex, size);
             return { argsValues: feltArray, endIndex };
         } else if(!type.includes("*") && type !== "felt") {
-            const { structCalldata, endIndex } = this.getStructFromCalldata(rawType, calldata.fullCalldataValues, calldata.startIndex);
+            const { structCalldata, endIndex } = this._getStructFromCalldata(rawType, calldata.fullCalldataValues, calldata.startIndex);
             return { argsValues: structCalldata, endIndex };
         } else {
-            const size = this.getArraySizeFromCalldata(calldata);
-            const { structArray, endIndex } = this.getStructArrayFromCalldata(
+            const size = this._getArraySizeFromCalldata(calldata);
+            const { structArray, endIndex } = this._getStructArrayFromCalldata(
                 rawType, 
                 calldata.fullCalldataValues,
                 calldata.startIndex,
@@ -119,7 +148,7 @@ export class ContractAnalyzer {
         }
     }
 
-    getArraySizeFromCalldata(calldata: { fullCalldataValues: BigNumber[], startIndex: number }) {
+    _getArraySizeFromCalldata(calldata: { fullCalldataValues: BigNumber[], startIndex: number }) {
         try {
             const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
             return size;
@@ -131,7 +160,7 @@ export class ContractAnalyzer {
         }
     }
     
-    getFeltFromCalldata(
+    _getFeltFromCalldata(
         calldata: BigNumber[],
         startIndex: number
     ) {
@@ -139,7 +168,7 @@ export class ContractAnalyzer {
         return { felt, endIndex: startIndex + 1 };
     }
     
-    getFeltArrayFromCalldata(
+    _getFeltArrayFromCalldata(
         calldata: BigNumber[],
         startIndex: number,
         sizeOfArray: number
@@ -155,7 +184,7 @@ export class ContractAnalyzer {
     }
     
     // TODO: What if a nested property is a struct itself ? 
-    getStructFromCalldata(
+    _getStructFromCalldata(
         type: string,
         calldata: BigNumber[],
         startIndex: number
@@ -171,7 +200,7 @@ export class ContractAnalyzer {
         return { structCalldata, endIndex: calldataIndex };
     }
     
-    getStructArrayFromCalldata(
+    _getStructArrayFromCalldata(
         type: string,
         calldata: BigNumber[],
         startIndex: number,
