@@ -11,13 +11,11 @@ It run better in a Linux environment, I'm using WSL2 in order to run the project
 
 If you see code that can be improved, logic flaws, or any improvement that can be made, please reach out to me on discord dsi#9447, I'm here to learn as well.
 
-# What is does now:
+# What can you do with it now:
 
-1) It fetch all blocks for the past 24 hours and rank the most actives accounts and contracts on goerli.
-Type `hh run scripts/getTopAccountsPerDay.ts` to run the script (it use the starknet default provider and may take a while to fetch all the blocks).
-
-2) Given a transaction, it analyze the inputs and events, and return an organized object (similar to what you see at etherscan.io)
-Type `ts-node scripts/analyzeBlock.ts` to run the script
+1) `BlockAnalyzer` - Given a block, analyze events and calldata of each transactions if possible
+2) `ContractAnalyzer` - Allow to organize call to a certain contract address
+3) `Transaction Analyzer` - Given a transaction, return an organized version of a transaction calldata with Call array (the contracts that get called within the tx) and the calldata
 
 # Current Notice
 
@@ -60,7 +58,7 @@ export declare type Event = {
 };
 ```
 
-I also added an EventAbi in `node_modules/starknet/types/lib.d.ts` and `node_modules/starknet/dist/types/lib.d.ts` (probably only useful in dist)
+I also added an EventAbi in `node_modules/starknet/types/lib.d.ts` and `node_modules/starknet/dist/types/lib.d.ts` (only useful in dist, but I'm saying both just in case)
 ```
 export declare type EventAbi = {
   data: { name: string, type: string }[],

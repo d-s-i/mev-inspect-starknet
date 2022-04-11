@@ -12,11 +12,11 @@ import {
     CallArray,
     OrganizedTransaction
 } from "../helpers/types";
-import { ContractAnalyzer } from "./ContractAnalyzer";
-import { TransactionAnalyzer } from "./TransactionAnalyzer";
+import { ContractCallAnalyzer } from "./ContractCallAnalyzer";
+import { TransactionCallAnalyzer } from "./TransactionCallAnalyzer";
 import { sleep } from "../helpers/helpers";
 
-export class BlockAnalyzer extends TransactionAnalyzer {
+export class BlockAnalyzer extends TransactionCallAnalyzer {
 
     private _provider: Provider;
     
@@ -69,8 +69,8 @@ export class BlockAnalyzer extends TransactionAnalyzer {
     }
 
     async getEventOutput(event: Event) {
-        const { structs, functions, events } = await ContractAnalyzer.getContractAbi(event.from_address, this.provider);
-        const contractAnalyzer = new ContractAnalyzer(
+        const { structs, functions, events } = await ContractCallAnalyzer.getContractAbi(event.from_address, this.provider);
+        const contractCallAnalyzer = new ContractCallAnalyzer(
             event.from_address,
             structs,
             functions,
@@ -78,7 +78,7 @@ export class BlockAnalyzer extends TransactionAnalyzer {
         );
 
         try {
-            const structuredEvent = await contractAnalyzer.organizeEvent(event);
+            const structuredEvent = await contractCallAnalyzer.organizeEvent(event);
             return structuredEvent;
         } catch(error) {
             return undefined;
@@ -91,7 +91,7 @@ export class BlockAnalyzer extends TransactionAnalyzer {
     ) {
         let rawCalldataIndex = 0;
         let functionCalls = [];
-        let contractAnalyzers: { [key: string]: ContractAnalyzer } = {};
+        let contractAnalyzers: { [key: string]: ContractCallAnalyzer } = {};
         for(const call of callArray) {
             const { contractAnalyzer, newContractAnalyzer } = await this.getContractAnalyzer(call.to.toHexString(), contractAnalyzers);
             contractAnalyzers = newContractAnalyzer; 
@@ -115,14 +115,14 @@ export class BlockAnalyzer extends TransactionAnalyzer {
     
     async getContractAnalyzer(
         address: string, 
-        contractAnalyzers: { [key: string]: ContractAnalyzer }
+        contractAnalyzers: { [key: string]: ContractCallAnalyzer }
     ) {
     
         // store contract to avoid fetching the same contract twice for the same function call
         if(!contractAnalyzers[address]) {
-            const { functions, structs, events } = await ContractAnalyzer.getContractAbi(address, this.provider);
+            const { functions, structs, events } = await ContractCallAnalyzer.getContractAbi(address, this.provider);
             let newContractAnalyzer = contractAnalyzers;
-            newContractAnalyzer[address] = new ContractAnalyzer(address, structs, functions, events);
+            newContractAnalyzer[address] = new ContractCallAnalyzer(address, structs, functions, events);
             return { contractAnalyzer: newContractAnalyzer[address], newContractAnalyzer };
         } else {
             return { contractAnalyzer: contractAnalyzers[address], newContractAnalyzer: contractAnalyzers };

@@ -5,7 +5,7 @@ import {
 
 import { callArrayStructLength } from "../helpers/constants";
 
-export class TransactionAnalyzer {
+export class TransactionCallAnalyzer {
     
     /**
      * @dev - Transactions have:
@@ -16,7 +16,9 @@ export class TransactionAnalyzer {
     static destructureFunctionCalldata(tx: InvokeFunctionTransaction) {
         if(!tx.calldata) {
             console.log(tx);
-            throw new Error(`TransactionAnalyzer::destructureFunctionCalldata - Calldata of tx is undefined (calldata: ${tx.calldata})`);
+            throw new Error(
+                `TransactionAnalyzer::destructureFunctionCalldata - Calldata of tx is undefined (calldata: ${tx.calldata})`
+            );
         };
 
         const callArray = this._getCallArrayFromTx(tx);

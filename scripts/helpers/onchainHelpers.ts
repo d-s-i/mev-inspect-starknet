@@ -1,17 +1,9 @@
 import { defaultProvider } from "starknet";
-import { BigNumber } from "ethers";
-import { getSelectorFromName } from "starknet/utils/hash";
 import { STARKNET_BLOCKS_PER_DAY } from "./constants";
 import { sleep, displayProgress } from "./helpers";
 import { 
     RangeMilestones, 
-    StarknetContractCode,
-    OrganizedEventAbi,
-    OrganizedFunctionAbi,
-    OrganizedStructAbi
 } from "./types";
-
-//////////////////
 
 export const getBlockRange = async function() {
     const latestBlockNumber = await getLatestBlockNumber();

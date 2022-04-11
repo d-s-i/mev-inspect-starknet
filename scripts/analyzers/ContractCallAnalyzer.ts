@@ -12,7 +12,7 @@ import { Event } from "starknet/dist/types/api";
 import { Provider } from "starknet";
 import { getSelectorFromName } from "starknet/utils/hash";
 
-export class ContractAnalyzer {
+export class ContractCallAnalyzer {
 
     private _structs: OrganizedStructAbi | undefined;
     private _functions: OrganizedFunctionAbi | undefined;
