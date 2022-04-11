@@ -35,7 +35,7 @@ export interface StarknetContractCode {
 }
 
 export interface OrganizedFunctionAbi { 
-    [key: string]: FunctionAbi 
+    [selector: string]: FunctionAbi 
 }
 
 export interface OrganizedStructAbi {

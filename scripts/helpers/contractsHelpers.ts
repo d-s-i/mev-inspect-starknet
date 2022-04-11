@@ -10,38 +10,33 @@ import {
     OrganizedEventAbi,
     OrganizedStructAbi,
     OrganizedFunctionAbi,
-    StarknetArgument,
-    StarknetStruct,
-    CallArray,
-    OrganizedCalldata
+    CallArray
 } from "./types";
+import { ContractAnalyzer } from "../contractAnalyzer";
 
 const FILE_PATH = "scripts/helpers/contractsHelpers";
 
-export const getCalldataPerFunction = async function(
+export const getCalldataPerCall = async function(
     callArray: CallArray[],
     fullTxCalldata: BigNumber[]
 ) {
     let rawCalldataIndex = 0;
     let functionCalls = [];
-    let contractsCalledAbis: { [key: string]: StarknetContractCode } = {};
+    let contractAnalyzers: { [key: string]: ContractAnalyzer } = {};
     for(const call of callArray) {
-        if(!contractsCalledAbis[call.to.toHexString()]) {
-            contractsCalledAbis[call.to.toHexString()] = await getContractAbi(call.to.toHexString());
-        } 
+        const { contractAnalyzer, newContractAnalyzer } = await getContractAnalyzer(call.to.toHexString(), contractAnalyzers);
+        contractAnalyzers = newContractAnalyzer; 
 
-        const fnAbi = getFunctionAbiFromContractCode(contractsCalledAbis[call.to.toHexString()], call);
-        const { subcalldata, endIndex } = getSingleFunctionCalldata(
-            contractsCalledAbis[call.to.toHexString()].structs, 
+        const { subcalldata, endIndex } = contractAnalyzer.structureFunctionInput(
+            call.selector.toHexString(), 
             { fullCalldataValues: fullTxCalldata, startIndex: rawCalldataIndex }, 
-            fnAbi
         );
         if(!endIndex && endIndex !== 0) {
             throw new Error(`${FILE_PATH}/analyzeBlock - No endIndex returned (endIndex: ${endIndex})`);
         }
         rawCalldataIndex = endIndex;
         functionCalls.push({
-            name: fnAbi.name,
+            name: contractAnalyzer.getFunctionAbiFromSelector(call.selector.toHexString()).name,
             to: call.to,
             calldata: subcalldata
         });
@@ -49,148 +44,21 @@ export const getCalldataPerFunction = async function(
     return functionCalls;
 }
 
-/**
- * 
- * @param contractCode - Code of the target contract fetched from `get_code` 
- * @param calldataObj - Calldata of the whole transaction (needs a start index to know how divide it in case it's a multi call) 
- * @param calledFunctionAbi - Abi of the function to know how to divide each args into each inputs
- * @returns calldata of the function called and endIndex where the function call end in the whole calldata of the transaction
- */
-const getSingleFunctionCalldata = function(
-    structs: OrganizedStructAbi, 
-    calldataObj: { fullCalldataValues: BigNumber[], startIndex: number },
-    calledFunctionAbi: FunctionAbi
+const getContractAnalyzer = async function(
+    address: string, 
+    contractAnalyzers: { [key: string]: ContractAnalyzer }
 ) {
 
-    const inputs = calledFunctionAbi.inputs;
-    let calldataIndex = calldataObj.startIndex;
-
-    let calldata: OrganizedCalldata = [];
-    for(const input of inputs) {
-        const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
-            input.type,
-            { fullCalldataValues: calldataObj.fullCalldataValues, startIndex: calldataIndex },
-            structs
-        );
-        calldataIndex = endIndex;
-        calldata.push({ ...input, value: argsValues });
-    }
-
-    return { subcalldata: calldata, endIndex: calldataIndex };
-}
-
-/**
- * 
- * @param type - Type of the starknet argument (4 possible: felt, felt*, my_struct, my_struct*)
- * @param calldata - Calldata of the whole starknet function call
- * @param startIndex - Index from the full calldata of the starknet function call where you start fetching the arguments
- * @param structs - Structs of the contract to build the argument in case it is a struct
- * @returns - The subcalldata of the function call and the index where it stopped (so that the next  function call cal start at the right place)
- */
-export const getArgumentsValuesFromCalldata = function(
-    type: string,
-    calldata: { fullCalldataValues: BigNumber[], startIndex: number },
-    structs: OrganizedStructAbi
-) {
-    const rawType = type.includes("*") ? type.slice(0, type.length - 1) : type;
-    if(type === "felt") {
-        const { felt, endIndex } = getFeltFromCalldata(calldata.fullCalldataValues, calldata.startIndex);
-        return { argsValues: felt, endIndex };
-    } else if(type === "felt*") {
-        const size = getArraySizeFromCalldata(calldata);
-        const { feltArray, endIndex } = getFeltArrayFromCalldata(calldata.fullCalldataValues, calldata.startIndex, size);
-        return { argsValues: feltArray, endIndex };
-    } else if(!type.includes("*") && type !== "felt") {
-        const { structCalldata, endIndex } = getStructFromCalldata(structs[rawType], calldata.fullCalldataValues, calldata.startIndex);
-        return { argsValues: structCalldata, endIndex };
+    // store contract to avoid fetching the same contract twice for the same function call
+    if(!contractAnalyzers[address]) {
+        const { functions, structs, events } = await getContractAbi(address);
+        let newContractAnalyzer = contractAnalyzers;
+        newContractAnalyzer[address] = new ContractAnalyzer(address, structs, functions, events);
+        return { contractAnalyzer: newContractAnalyzer[address], newContractAnalyzer };
     } else {
-        const size = getArraySizeFromCalldata(calldata);
-        const { structArray, endIndex } = getStructArrayFromCalldata(
-            structs[rawType], 
-            calldata.fullCalldataValues,
-            calldata.startIndex,
-            size
-        );
-        return { argsValues: structArray, endIndex };
-    }
-}
-
-const getArraySizeFromCalldata = function(calldata: { fullCalldataValues: BigNumber[], startIndex: number }) {
-    try {
-        const size = calldata.fullCalldataValues[calldata.startIndex - 1].toNumber();
-        return size;
-    } catch(error) {
-        console.log(error);
-        throw new Error(
-            `${FILE_PATH}/getArraySizeFromCalldata - Error trying to get the previous calldata index and converting it into number (value: ${calldata.fullCalldataValues[calldata.startIndex - 1]})`
-        );
-    }
-}
-
-const getFeltFromCalldata = function(
-    calldata: BigNumber[],
-    startIndex: number
-) {
-    const felt = calldata[startIndex];
-    return { felt, endIndex: startIndex + 1 };
-}
-
-const getFeltArrayFromCalldata = function(
-    calldata: BigNumber[],
-    startIndex: number,
-    sizeOfArray: number
-) {
-    let feltArray = [];
-    let calldataIndex = startIndex;
-    for(let j = startIndex; j < startIndex + sizeOfArray; j++) {
-        feltArray.push(calldata[j]);
-        calldataIndex++;
+        return { contractAnalyzer: contractAnalyzers[address], newContractAnalyzer: contractAnalyzers };
     }
 
-    return { feltArray, endIndex: calldataIndex };
-}
-
-// TODO: What if a nested property is a struct itself ? 
-const getStructFromCalldata = function(
-    struct: StarknetStruct,
-    calldata: BigNumber[],
-    startIndex: number
-) {
-    if(!struct.properties) {
-        throw new Error(`${FILE_PATH}/getFunctionCalldata - No properties for struct of type ${struct} in the fetched contract abi`);
-    }
-    let structCalldata: StarknetArgument = {};
-    let calldataIndex = startIndex;
-    for(const property of struct.properties) {
-        structCalldata[property.name] = calldata[calldataIndex];
-        calldataIndex++;
-    }
-
-    return { structCalldata, endIndex: calldataIndex };
-}
-
-const getStructArrayFromCalldata = function(
-    struct: StarknetStruct,
-    calldata: BigNumber[],
-    startIndex: number,
-    size: number,
-
-) {
-    let structArray = [];
-    let calldataIndex = startIndex;
-    for(let j = 0; j < size; j++) {
-        let singleStruct: StarknetArgument = {};
-        if(!struct.properties) {
-            throw new Error(`${FILE_PATH}/getFunctionCalldata - No properties for struct of type ${struct} in the fetched contract abi`);
-        }
-        for(const property of struct.properties!) {
-            singleStruct[property.name] = calldata[calldataIndex];
-            calldataIndex++;
-        }
-        structArray.push(singleStruct);
-    }
-
-    return { structArray, endIndex: calldataIndex };
 }
 
 /**
@@ -262,7 +130,7 @@ export const getContractInteractions = async function(transactions: (DeployTrans
 const getContractType = function(transaction: InvokeFunctionTransaction) {
     // assuming accounts contract calls `__execute__`
     // other solution : calling `get_signer` for Argent Accounts or `get_public_key` for OpenZeppelin Accounts, but it is very long
-    return transaction.entry_point_selector === EXECUTE_SELECTOR ? "ACCOUNT_CONTRACT" : "GENRAL_CONTRACT";
+    return transaction.entry_point_selector === EXECUTE_SELECTOR ? "ACCOUNT_CONTRACT" : "GENERAL_CONTRACT";
 }
 
 export const callContract = async function(address: string, entrypoint: string) {

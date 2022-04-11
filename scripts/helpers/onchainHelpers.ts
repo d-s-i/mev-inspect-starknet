@@ -1,43 +1,48 @@
 import { defaultProvider } from "starknet";
 import { STARKNET_BLOCKS_PER_DAY } from "./constants";
+import { BigNumber } from "ethers";
 import { sleep, displayProgress } from "./helpers";
-import { RangeMilestones, FunctionCall } from "./types";
-import { Event, InvokeFunctionTransaction } from "starknet/dist/types/api";
+import { 
+    RangeMilestones, 
+    FunctionCall, 
+    OrganizedStructAbi,
+    OrganizedCalldata
+} from "./types";
+import { Event } from "starknet/dist/types/api";
+import { FunctionAbi, InvokeFunctionTransaction } from "starknet/types"
 import { 
     getContractAbi,
-    getArgumentsValuesFromCalldata,
     destructureFunctionCalldata,
-    getCalldataPerFunction
+    getCalldataPerCall
 } from "./contractsHelpers";
+import { ContractAnalyzer } from "../contractAnalyzer";
 
-export const getEventCalldata = async function(event: Event) {
-    const { structs, events } = await getContractAbi(event.from_address);
+const FILE_PATH = "scripts/onchainHelpers";
 
-    let dataIndex = 0;
-    if(events[event.keys[0]]?.data) {
-        let eventArgs = [];
-        // TODO: make another for loop for each keys in case many events are triggered
-        for(const arg of events[event.keys[0]].data) {
-            const { argsValues, endIndex } = getArgumentsValuesFromCalldata(
-                arg.type, 
-                { fullCalldataValues: event.data, startIndex: dataIndex }, 
-                structs
-            );
-            dataIndex = endIndex;
-            eventArgs.push({ ...arg, value: argsValues });
-        }
-        return { name: events[event.keys[0]].name, calldata: eventArgs };
-    } else {
-        console.log("No Abi For This Event", event.keys[0]);
-    }
-}
-
-export const getCalldataPerFunctionFromTx = async function(transaction: InvokeFunctionTransaction) {
+export const getCalldataPerCallFromTx = async function(transaction: InvokeFunctionTransaction) {
     const { callArray, rawFnCalldata } = destructureFunctionCalldata(transaction);
-    const functionCalls = await getCalldataPerFunction(callArray, rawFnCalldata);
+    const functionCalls = await getCalldataPerCall(callArray, rawFnCalldata);
 
     return functionCalls as FunctionCall[];
 }
+
+export const getCalldataPerEventFromTx = async function(event: Event) {
+    const { structs, functions, events } = await getContractAbi(event.from_address);
+    const contractAnalyzer = new ContractAnalyzer(
+        event.from_address,
+        structs,
+        functions,
+        events
+    );
+    try {
+        const structuredEvent = await contractAnalyzer.structureEvent(event);
+        return structuredEvent;
+    } catch(error) {
+        return undefined;
+    }
+}
+
+//////////////////
 
 export const getBlockRange = async function() {
     const latestBlockNumber = await getLatestBlockNumber();

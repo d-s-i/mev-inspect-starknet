@@ -3,8 +3,8 @@ import {
     InvokeFunctionTransaction, 
 } from "starknet/types/index";
 import {
-    getCalldataPerFunctionFromTx,
-    getEventCalldata
+    getCalldataPerCallFromTx,
+    getCalldataPerEventFromTx
 } from "./helpers/onchainHelpers";
 import { sleep } from "./helpers/helpers";
 
@@ -17,7 +17,7 @@ const analyzeBlock = async function(blockNumber: number) {
 
     for(const receipt of receipts) {
         for(const event of receipt.events) {
-            const eventCalldata = await getEventCalldata(event);
+            const eventCalldata = await getCalldataPerEventFromTx(event);
             if(eventCalldata) {
                 console.log(`Event: ${eventCalldata.name}`);
                 for(const calldataValue of eventCalldata.calldata) {
@@ -27,7 +27,8 @@ const analyzeBlock = async function(blockNumber: number) {
 
             const tx = transactions[receipt.transaction_index] as InvokeFunctionTransaction;
             try {
-                const functionCalls = await getCalldataPerFunctionFromTx(tx);
+                console.log(tx.calldata);
+                const functionCalls = await getCalldataPerCallFromTx(tx);
                 for(const functionCall of functionCalls) {
                     console.log(`Called ${functionCall.name}`);
                 }

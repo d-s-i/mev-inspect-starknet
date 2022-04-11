@@ -1,4 +1,4 @@
-import { starknet } from "hardhat";
+// import { starknet } from "hardhat";
 import path from "path";
 import fs from "fs-extra";
 import { defaultProvider, Provider } from "starknet";
