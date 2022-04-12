@@ -40,12 +40,7 @@ export const getAllTransactionsWithingBlockRange = async function(
 
 export const getLatestBlockNumber = async function() {
     const latestBlock = await defaultProvider.getBlock("pending");
-    if(!latestBlock.block_number && latestBlock.parent_block_hash) {
-        const previousLatestBlock = await defaultProvider.getBlock(latestBlock.parent_block_hash);
-        return previousLatestBlock.block_number;
-    } else {
-        return latestBlock.block_number;
-    }
+    return latestBlock.block_number
 }
 
 /**

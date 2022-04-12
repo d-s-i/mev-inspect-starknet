@@ -1,5 +1,5 @@
 import { defaultProvider } from "starknet";
-import { BlockAnalyzer } from "./analyzers/BlockAnalyzer";
+import { BlockAnalyzer } from "starknet-analyzer/lib/analyzers/BlockAnalyzer";
 
 const analyzeBlock = async function(blockNumber: number) {
 

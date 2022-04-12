@@ -19,24 +19,20 @@ If you see code that can be improved, logic flaws, or any improvement that can b
 
 # Current Notice
 
-There is a problem with some type declaration in the starknetjs type declaration. I had to change the `GetBlockResponse` type, located in `node_modules/starknet/dist/provider/api.d.ts` to this
+You need to change `GetBlockResponse` and `GetCodeResponse` in `node_modules/starknet/dist/types/api.d.ts` to:
 
 ```
+import { Event } from 'starknet-analyzer/src/types/rawStarknet';
 export declare type GetBlockResponse = {
     block_number: number;
     state_root: string;
     block_hash: string;
-    transactions: Transaction[]; // this has changed
+    transactions: Transaction[];
     timestamp: number;
-    transaction_receipts: TransactionReceipt[]; // this has changed
-    parent_block_hash: string;
+    transaction_receipts: TransactionReceipt[];
+    previous_block_hash: string;
     status: Status;
 };
-```
-
-and
-
-```
 export declare type TransactionReceipt = {
     status: Status;
     transaction_hash: string;
@@ -44,27 +40,7 @@ export declare type TransactionReceipt = {
     block_hash: string;
     block_number: BlockNumber;
     l2_to_l1_messages: string[];
-    events: Event[]; // this has changed
-};
-```
-
-with Event being:
-
-```
-export declare type Event = {
-    from_address: string;
-    keys: Array<any>;
-    data: Array<any>;
-};
-```
-
-I also added an EventAbi in `node_modules/starknet/types/lib.d.ts` and `node_modules/starknet/dist/types/lib.d.ts` (only useful in dist, but I'm saying both just in case)
-```
-export declare type EventAbi = {
-  data: { name: string, type: string }[],
-  keys: string[],
-  name: string,
-  type: string
+    events: Event[];
 };
 ```
 

@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "fs-extra": "^10.0.1",
-    "node-fetch": "^3.2.3"
+    "node-fetch": "^3.2.3",
+    "starknet-analyzer": "^1.0.6"
   }
 }
