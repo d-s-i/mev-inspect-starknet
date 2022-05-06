@@ -1,0 +1,8 @@
+'use strict';
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.ProviderInterface = void 0;
+var ProviderInterface = /** @class */ (function () {
+  function ProviderInterface() {}
+  return ProviderInterface;
+})();
+exports.ProviderInterface = ProviderInterface;

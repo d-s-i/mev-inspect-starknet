@@ -1,0 +1,11 @@
+/// <reference types="bn.js" />
+import { BigNumberish } from './number';
+export interface Uint256 {
+  low: BigNumberish;
+  high: BigNumberish;
+}
+export declare function uint256ToBN(uint256: Uint256): import('bn.js');
+export declare const UINT_128_MAX: import('bn.js');
+export declare const UINT_256_MAX: import('bn.js');
+export declare function isUint256(bn: BigNumberish): boolean;
+export declare function bnToUint256(bignumber: BigNumberish): Uint256;
